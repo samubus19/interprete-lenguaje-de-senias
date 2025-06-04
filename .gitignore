@@ -1,0 +1,35 @@
+# Entorno virtual
+venv/
+
+# Archivos de Python compilados
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de configuración de PyQt
+*.pyqt5
+
+# Archivos de modelos entrenados
+models/
+
+# Datos recolectados
+/data/collected/
+
+# Archivos temporales y de logs
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Archivos de configuración de IDE
+.vscode/
+.idea/
+*.swp
+
+# Archivos de salida de entrenamiento
+training_history.png
+confusion_matrix.png
+
+# Otros
+.env 

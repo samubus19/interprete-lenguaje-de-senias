@@ -1,0 +1,40 @@
+{
+    "signs": [
+        {
+            "id": 0,
+            "name": "hola",
+            "description": "Saludo básico",
+            "category": "saludos"
+        },
+        {
+            "id": 1,
+            "name": "gracias",
+            "description": "Expresión de agradecimiento",
+            "category": "cortesía"
+        },
+        {
+            "id": 2,
+            "name": "por favor",
+            "description": "Solicitud cortés",
+            "category": "cortesía"
+        },
+        {
+            "id": 3,
+            "name": "buenos días",
+            "description": "Saludo matutino",
+            "category": "saludos"
+        },
+        {
+            "id": 4,
+            "name": "buenas noches",
+            "description": "Saludo nocturno",
+            "category": "saludos"
+        },
+        {
+            "id": 5,
+            "name": "adiós",
+            "description": "Despedida",
+            "category": "saludos"
+        }
+    ]
+} 
