@@ -15,6 +15,7 @@ models/
 
 # Datos recolectados
 /data/collected/
+/data/collected_sequences
 
 # Archivos temporales y de logs
 *.log
@@ -30,6 +31,8 @@ Thumbs.db
 # Archivos de salida de entrenamiento
 training_history.png
 confusion_matrix.png
+confusion_matrix_seq.png
 
 # Otros
 .env 
+

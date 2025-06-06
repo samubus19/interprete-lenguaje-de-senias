@@ -5,7 +5,7 @@ import numpy as np
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QTextEdit
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QImage, QPixmap
-from model.sign_recognizer import SignRecognizer
+from model.sequence_sign_recognizer import SequenceSignRecognizer
 
 class SignLanguageApp(QMainWindow):
     def __init__(self):
@@ -13,18 +13,20 @@ class SignLanguageApp(QMainWindow):
         self.setWindowTitle("Intérprete de Lenguaje de Señas Argentino")
         self.setGeometry(100, 100, 1200, 800)
 
-        # Inicializar el reconocedor de señas
-        self.recognizer = SignRecognizer()
+        # Inicializar el reconocedor de secuencias
+        self.seq_recognizer = SequenceSignRecognizer()
+        self.frase_actual = []
+        self.ultima_seña = None
 
         # Configuración de MediaPipe
         self.mp_hands = mp.solutions.hands
+        self.mp_draw = mp.solutions.drawing_utils
         self.hands = self.mp_hands.Hands(
             static_image_mode=False,
             max_num_hands=2,
             min_detection_confidence=0.7,
             min_tracking_confidence=0.5
         )
-        self.mp_draw = mp.solutions.drawing_utils
 
         # Configuración de la cámara
         self.cap = cv2.VideoCapture(0)
@@ -53,40 +55,28 @@ class SignLanguageApp(QMainWindow):
         self.toggle_button.clicked.connect(self.toggle_interpretation)
         self.layout.addWidget(self.toggle_button)
 
+        self.clear_button = QPushButton("Limpiar Frase")
+        self.clear_button.clicked.connect(self.limpiar_frase)
+        self.layout.addWidget(self.clear_button)
+
         self.is_processing = False
-        self.last_predictions = []
 
     def update_frame(self):
         ret, frame = self.cap.read()
         if ret:
-            # Convertir el frame a RGB para MediaPipe
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
             if self.is_processing:
-                # Procesar el frame con el reconocedor de señas
-                predictions = self.recognizer.predict(frame)
-                
-                if predictions:
-                    self.last_predictions = predictions
-                    text = "Señas detectadas:\n"
-                    for pred in predictions:
-                        text += f"- {pred['sign']} (confianza: {pred['confidence']:.2f})\n"
-                        # Dibuja el nombre y confianza sobre el video
-                        cv2.putText(
-                            rgb_frame,
-                            f"{pred['sign']} ({pred['confidence']*100:.1f}%)",
-                            (30, 60),  # Puedes ajustar la posición
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            1.2,
-                            (0, 255, 0),
-                            3
-                        )
-                    self.text_area.setText(text)
-                else:
-                    self.text_area.setText("Sin seña detectada")
-                
-                # Dibujar los landmarks de las manos
-                results = self.hands.process(rgb_frame)
+                # Actualizar buffer de secuencia y predecir
+                self.seq_recognizer.update_buffer(frame)
+                pred = self.seq_recognizer.predict()
+                if pred:
+                    if pred['sign'] != self.ultima_seña:
+                        self.frase_actual.append(pred['sign'])
+                        self.ultima_seña = pred['sign']
+                    self.text_area.setText(' '.join(self.frase_actual))
+                # Dibujar landmarks
+                results = self.seq_recognizer.hands.process(rgb_frame)
                 if results.multi_hand_landmarks:
                     for hand_landmarks in results.multi_hand_landmarks:
                         self.mp_draw.draw_landmarks(
@@ -112,7 +102,14 @@ class SignLanguageApp(QMainWindow):
         )
         if not self.is_processing:
             self.text_area.clear()
-            self.last_predictions = []
+            self.frase_actual = []
+            self.ultima_seña = None
+            self.seq_recognizer.reset_buffer()
+
+    def limpiar_frase(self):
+        self.frase_actual = []
+        self.ultima_seña = None
+        self.text_area.clear()
 
     def closeEvent(self, event):
         self.cap.release()
