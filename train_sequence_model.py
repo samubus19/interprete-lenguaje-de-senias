@@ -35,6 +35,10 @@ def load_sequences(data_dir="data/collected_sequences"):
 
 print("Cargando secuencias...")
 X, y = load_sequences()
+print("X:")
+print(X)
+print("y:")
+print(y)
 print(f"Total de secuencias: {len(X)}")
 
 # Mostrar información sobre las clases
@@ -52,9 +56,19 @@ if len(X) == 0:
 
 # One-hot encoding de etiquetas
 y_cat = to_categorical(y, num_classes=num_classes)
+print("y_cat:")
+print(y_cat)
 
 # Dividir en entrenamiento y test
 X_train, X_test, y_train, y_test = train_test_split(X, y_cat, test_size=0.2, random_state=42, stratify=y)
+print("X_train:")
+print(X_train)
+print("X_test:")
+print(X_test)
+print("y_train:")
+print(y_train)
+print("y_test:")
+print(y_test)
 
 # Modelo LSTM mejorado
 model = Sequential([
@@ -108,7 +122,7 @@ print(f"\nClases predichas: {unique_pred_classes}")
 print(f"Clases verdaderas: {unique_true_classes}")
 
 print("\nReporte de Clasificación:")
-print(classification_report(y_true_classes, y_pred_classes, target_names=class_names, zero_division=0))
+# print(classification_report(y_true_classes, y_pred_classes, target_names=class_names, zero_division=0))
 
 # Matriz de confusión
 def plot_confusion_matrix(y_true, y_pred, class_names):

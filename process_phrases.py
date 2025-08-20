@@ -70,19 +70,40 @@ def process_phrases(input_csv: str, output_csv: str = "data/frases_comercio.csv"
     new_phrases = read_new_phrases(input_csv)
     print(f"Nuevas frases encontradas: {len(new_phrases)}")
     
-    # Encontrar frases que ya existen
+    # Encontrar frases que ya existen (case-insensitive)
     already_exist = []
     truly_new = []
     
+    # Crear un conjunto de frases existentes en minúsculas para comparación rápida
+    existing_phrases_lower = {phrase.lower() for phrase in existing_phrases}
+    
     for phrase in new_phrases:
-        if phrase in existing_phrases:
-            already_exist.append(phrase)
+        if phrase.lower() in existing_phrases_lower:
+            # Encontrar la frase original (con la capitalización original)
+            original_phrase = next((existing for existing in existing_phrases 
+                                  if existing.lower() == phrase.lower()), phrase)
+            already_exist.append(original_phrase)
         else:
             truly_new.append(phrase)
     
-    # Combinar todas las frases y ordenar alfabéticamente
-    all_phrases = existing_phrases + truly_new
-    all_phrases.sort(key=str.lower)  # Ordenamiento case-insensitive
+    # Combinar frases existentes y nuevas, eliminando duplicados case-insensitive
+    all_phrases = []
+    seen_lower = set()
+    
+    # Primero agregar las frases existentes, manteniendo solo una versión de cada una
+    for phrase in existing_phrases:
+        if phrase.lower() not in seen_lower:
+            all_phrases.append(phrase)
+            seen_lower.add(phrase.lower())
+    
+    # Luego agregar las frases nuevas que no existan
+    for phrase in truly_new:
+        if phrase.lower() not in seen_lower:
+            all_phrases.append(phrase)
+            seen_lower.add(phrase.lower())
+    
+    # Ordenar alfabéticamente (case-insensitive)
+    all_phrases.sort(key=str.lower)
     
     # Escribir el archivo actualizado
     write_phrases_to_csv(all_phrases, output_csv)
@@ -127,12 +148,15 @@ def main():
         existing, new = process_phrases(input_file)
         
         # Contar frases en cada archivo
-        existing_count = len(read_existing_phrases("data/frases_comercio.csv"))
         input_count = len(read_new_phrases(input_file))
+        
+        # Leer el archivo final para obtener el conteo real
+        final_phrases = read_existing_phrases("data/frases_comercio.csv")
+        final_count = len(final_phrases)
         
         print("\n=== ESTADÍSTICAS ACTUALIZADAS ===")
         print(f"Frases en {input_file}: {input_count}")
-        print(f"Frases en data/frases_comercio.csv: {existing_count}")
+        print(f"Frases únicas en data/frases_comercio.csv: {final_count}")
         
         print("\n=== RESULTADOS ===")
         print(f"Frases que ya existían: {len(existing)}")
@@ -141,16 +165,17 @@ def main():
         #     for phrase in existing:
         #         print(f"  - {phrase}")
         
-        print(f"\nFrases nuevas agregadas: {len(new)}")
-        if new:
+        print(f"\nFrases nuevas agregadas: {len(final_phrases)}")
+        if final_phrases:
             print("Frases nuevas:")
-            for phrase in new:
+            for phrase in final_phrases:
                 print(f"  - {phrase}")
         
-        if not existing and not new:
+        if not existing and not final_phrases:
             print("No se encontraron frases para procesar.")
         
         print(f"\nEl archivo 'data/frases_comercio.csv' ha sido actualizado y ordenado alfabéticamente.")
+        print(f"Total de frases únicas finales: {final_count}")
         
     except Exception as e:
         print(f"Error durante el procesamiento: {e}")
