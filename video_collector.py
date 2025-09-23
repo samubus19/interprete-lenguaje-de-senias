@@ -68,36 +68,55 @@ def start_recording(phrase_path, frame):
     print(f"Comenzando a grabar: {video_path}")
     return video_writer
 
-def handle_recording_logic(hands_detected, is_recording, status, wait_counter, video_writer, phrase_path, frame):
+def handle_recording_logic(hands_detected, is_recording, status, wait_counter, video_writer, phrase_path, frame, auto_mode, space_pressed):
     """Maneja la lógica de grabación y retorna el nuevo estado."""
-    if not is_recording:
-        if hands_detected:
-            if wait_counter < WAIT_FRAMES:
-                status = f"{STATUS_PREPARING} ({wait_counter}/{WAIT_FRAMES})"
-                wait_counter += 1
+    if auto_mode:
+        # Modo automático: inicia al detectar manos
+        if not is_recording:
+            if hands_detected:
+                if wait_counter < WAIT_FRAMES:
+                    status = f"{STATUS_PREPARING} ({wait_counter}/{WAIT_FRAMES})"
+                    wait_counter += 1
+                else:
+                    is_recording = True
+                    status = STATUS_RECORDING
+                    video_writer = start_recording(phrase_path, frame)
             else:
+                wait_counter = 0
+                status = STATUS_READY
+        
+        else: # Está grabando
+            if hands_detected:
+                video_writer.write(frame)
+            else:
+                is_recording = False
+                status = STATUS_READY
+                wait_counter = 0
+                if video_writer:
+                    video_writer.release()
+                    print("Grabación detenida.")
+                    video_writer = None
+    else:
+        # Modo manual: inicia/detiene con ESPACIO
+        if space_pressed:
+            if not is_recording:
                 is_recording = True
                 status = STATUS_RECORDING
                 video_writer = start_recording(phrase_path, frame)
-        else:
-            wait_counter = 0
-            status = STATUS_READY
-    
-    else: # Está grabando
-        if hands_detected:
+            else:
+                is_recording = False
+                status = STATUS_READY
+                if video_writer:
+                    video_writer.release()
+                    print("Grabación detenida.")
+                    video_writer = None
+        
+        if is_recording and video_writer:
             video_writer.write(frame)
-        else:
-            is_recording = False
-            status = STATUS_READY
-            wait_counter = 0
-            if video_writer:
-                video_writer.release()
-                print("Grabación detenida.")
-                video_writer = None
     
     return is_recording, status, wait_counter, video_writer
 
-def draw_interface(image, phrase, status, phrase_path):
+def draw_interface(image, phrase, status, phrase_path, auto_mode):
     """Dibuja la interfaz de usuario en la imagen."""
     # Definir color de fondo según el estado
     if STATUS_RECORDING in status:
@@ -108,7 +127,7 @@ def draw_interface(image, phrase, status, phrase_path):
         bg_color = (245, 117, 16) # Azul
 
     # Fondo para el texto
-    cv2.rectangle(image, (0, 0), (640, 60), bg_color, -1)
+    cv2.rectangle(image, (0, 0), (640, 80), bg_color, -1)
 
     # Frase que se está grabando
     cv2.putText(image, f"Frase: {phrase}", (10, 20),
@@ -122,11 +141,33 @@ def draw_interface(image, phrase, status, phrase_path):
     # Estado de la captura
     cv2.putText(image, f"Estado: {status}", (10, 45),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0) if STATUS_PREPARING in status else (255, 255, 255), 1, cv2.LINE_AA)
+    
+    # Instrucciones según el modo
+    if auto_mode:
+        cv2.putText(image, "Modo: Automático - Muestra las manos para grabar", (10, 65),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0) if STATUS_PREPARING in status else (255, 255, 255), 1, cv2.LINE_AA)
+    else:
+        cv2.putText(image, "Modo: Manual - Presiona ESPACIO para grabar", (10, 65),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0) if STATUS_PREPARING in status else (255, 255, 255), 1, cv2.LINE_AA)
 
 def main():
     # Solicitar la frase a grabar
     # TODO: Luego estas frases o palabras pueden venir desde el diccionario o desde signs.json
     phrase = input("Introduce la palabra o frase a grabar: ")
+    
+    # Solicitar el modo de grabación
+    print("\nSelecciona el modo de grabación:")
+    print("1. Automático (inicia al detectar manos)")
+    print("2. Manual (presiona ESPACIO para iniciar/detener)")
+    
+    while True:
+        mode = input("Ingresa 1 o 2: ").strip()
+        if mode in ['1', '2']:
+            break
+        print("Por favor, ingresa 1 o 2")
+    
+    auto_mode = mode == '1'
+    
     # Ruta de la carpeta para la frase
     phrase_path = os.path.join(VIDEOS_PATH, phrase.upper().replace(" ", "_"))
 
@@ -152,18 +193,22 @@ def main():
             image, results = mediapipe_detection(frame, holistic)
             draw_styled_landmarks(image, results)
 
+            # Detectar tecla presionada
+            key = cv2.waitKey(10) & 0xFF
+            space_pressed = key == ord(' ')  # Detectar tecla ESPACIO
+            
             # Lógica de grabación
             hands_detected = has_hands(results)
             is_recording, status, wait_counter, video_writer = handle_recording_logic(
-                hands_detected, is_recording, status, wait_counter, video_writer, phrase_path, frame
+                hands_detected, is_recording, status, wait_counter, video_writer, phrase_path, frame, auto_mode, space_pressed
             )
 
             # Dibujar interfaz
-            draw_interface(image, phrase, status, phrase_path)
+            draw_interface(image, phrase, status, phrase_path, auto_mode)
 
             cv2.imshow('Video Collector', image)
 
-            if cv2.waitKey(10) & 0xFF == ord('q'):
+            if key == ord('q'):
                 break
     
     if video_writer:
