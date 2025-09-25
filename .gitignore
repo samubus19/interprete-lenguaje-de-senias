@@ -36,4 +36,7 @@ confusion_matrix_seq.png
 # Otros
 .env 
 videos/
+processed_frames/
+landmarks_data/
+dataset/
 

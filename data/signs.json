@@ -1,5 +1,87 @@
 {
-    "signs": [
+    "phrases": [
+        {
+            "id": 0,
+            "phrase": "YO COMPRAR CARNE",
+            "gloss": ["YO", "COMPRAR", "CARNE"],
+            "natural_text": "Yo voy a comprar carne",
+            "description": "Expresión de intención de compra",
+            "category": "acción_cotidianas"
+        },
+        {
+            "id": 1,
+            "phrase": "MAMÁ COCINAR COMIDA RICA",
+            "gloss": ["MAMÁ", "COCINAR", "COMIDA", "RICA"],
+            "natural_text": "Mamá cocina comida rica",
+            "description": "Descripción de actividad culinaria",
+            "category": "familia_actividades"
+        },
+        {
+            "id": 2,
+            "phrase": "MAÑANA TRABAJO IR",
+            "gloss": ["MAÑANA", "TRABAJO", "IR"],
+            "natural_text": "Mañana voy a trabajar",
+            "description": "Planificación de actividad laboral",
+            "category": "tiempo_trabajo"
+        },
+        {
+            "id": 3,
+            "phrase": "HERMANO PELOTA JUGAR",
+            "gloss": ["HERMANO", "PELOTA", "JUGAR"],
+            "natural_text": "Mi hermano juega a la pelota",
+            "description": "Actividad recreativa familiar",
+            "category": "familia_recreación"
+        },
+        {
+            "id": 4,
+            "phrase": "HOY ESCUELA VENIR",
+            "gloss": ["HOY", "ESCUELA", "VENIR"],
+            "natural_text": "Hoy vengo de la escuela",
+            "description": "Actividad educativa diaria",
+            "category": "educación_tiempo"
+        },
+        {
+            "id": 5,
+            "phrase": "PAPÁ CASA LLEGAR",
+            "gloss": ["PAPÁ", "CASA", "LLEGAR"],
+            "natural_text": "Papá llega a casa",
+            "description": "Llegada familiar al hogar",
+            "category": "familia_hogar"
+        },
+        {
+            "id": 6,
+            "phrase": "AGUA TOMAR QUERER",
+            "gloss": ["AGUA", "TOMAR", "QUERER"],
+            "natural_text": "Quiero tomar agua",
+            "description": "Expresión de necesidad básica",
+            "category": "necesidades_básicas"
+        },
+        {
+            "id": 7,
+            "phrase": "LIBRO LEER GUSTAR",
+            "gloss": ["LIBRO", "LEER", "GUSTAR"],
+            "natural_text": "Me gusta leer libros",
+            "description": "Expresión de preferencia por lectura",
+            "category": "gustos_educación"
+        },
+        {
+            "id": 8,
+            "phrase": "AMIGO CASA VENIR",
+            "gloss": ["AMIGO", "CASA", "VENIR"],
+            "natural_text": "Mi amigo viene a casa",
+            "description": "Visita social al hogar",
+            "category": "social_hogar"
+        },
+        {
+            "id": 9,
+            "phrase": "COMIDA RICA ESTAR",
+            "gloss": ["COMIDA", "RICA", "ESTAR"],
+            "natural_text": "La comida está rica",
+            "description": "Evaluación positiva de alimento",
+            "category": "alimentación_opinión"
+        }
+    ],
+    "individual_signs": [
         {
             "id": 0,
             "name": "hola",
@@ -37,4 +119,4 @@
             "category": "saludos"
         }
     ]
-} 
+}
