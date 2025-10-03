@@ -128,35 +128,30 @@ class LSAPipeline:
             print("✗ Error en la creación del dataset")
             return False
     
-    def step4_train_sequence_model(self):
-        """Paso 4: Entrenar modelo de secuencias"""
-        print("\n=== PASO 4: ENTRENAMIENTO DE MODELO DE SECUENCIAS ===")
+    def step4_train_holistic_model(self):
+        """Paso 4: Entrenar modelo holístico básico"""
+        print("\n=== PASO 4: ENTRENAMIENTO DE MODELO HOLÍSTICO ===")
         
-        dataset_file = os.path.join(self.config['dataset_dir'], 'lsa_sequence_dataset.pkl')
-        
-        if not os.path.exists(dataset_file):
-            print(f"Error: Dataset '{dataset_file}' no existe")
-            print("Ejecuta el paso 3 primero")
+        if not os.path.exists(self.config['landmarks_dir']):
+            print(f"Error: Directorio de landmarks '{self.config['landmarks_dir']}' no existe")
+            print("Ejecuta el paso 2 primero")
             return False
         
-        # Usar el script de entrenamiento actualizado
-        cmd = [
-            sys.executable, 'train_sequence_model.py',
-            '--dataset', dataset_file,
-            '--model_type', self.config['model_type'],
-            '--epochs', '50',  # Reducido para pruebas rápidas
-            '--batch_size', '16'
-        ]
+        # Usar el nuevo script de entrenamiento holístico
+        cmd = [sys.executable, 'train_holistic_model.py']
         
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
             
             if result.returncode == 0:
-                print("✓ Modelo de secuencias entrenado exitosamente")
+                print("✓ Modelo holístico entrenado exitosamente")
                 return True
             else:
                 print("✗ Error en el entrenamiento del modelo")
-                print(result.stderr)
+                if result.stderr:
+                    print("Error:", result.stderr)
+                if result.stdout:
+                    print("Output:", result.stdout)
                 return False
                 
         except Exception as e:
@@ -203,8 +198,7 @@ class LSAPipeline:
         steps = [
             ("Extracción de frames", self.step1_extract_frames),
             ("Extracción de landmarks", self.step2_extract_landmarks),
-            ("Creación de dataset", self.step3_create_dataset),
-            ("Entrenamiento de modelo", self.step4_train_sequence_model),
+            ("Entrenamiento de modelo holístico", self.step4_train_holistic_model),
             ("Configuración de convertidor", self.step5_setup_gloss_converter)
         ]
         
@@ -257,7 +251,7 @@ class LSAPipeline:
             'frames': self.step1_extract_frames,
             'landmarks': self.step2_extract_landmarks,
             'dataset': self.step3_create_dataset,
-            'train': self.step4_train_sequence_model,
+            'train': self.step4_train_holistic_model,
             'gloss': self.step5_setup_gloss_converter
         }
         

@@ -2,7 +2,7 @@ import cv2
 import os
 import numpy as np
 import mediapipe as mp
-from sklearn.cluster import KMeans
+# from sklearn.cluster import KMeans  # Ya no necesario para método uniforme
 import json
 from pathlib import Path
 
@@ -123,56 +123,49 @@ class FrameExtractor:
         else:
             return None
     
-    def select_representative_frames(self, features, valid_frames):
+    def select_uniform_frames(self, frames):
         """
-        Selecciona frames representativos usando clustering
+        Selecciona frames de manera uniforme a lo largo del video
         
         Args:
-            features (numpy.array): Características de los frames
-            valid_frames (list): Lista de (índice, frame) válidos
+            frames (list): Lista de todos los frames del video
             
         Returns:
-            list: Lista de frames representativos
+            list: Lista de frames seleccionados uniformemente
         """
-        if len(features) == 0:
-            print("No se encontraron frames válidos")
+        if len(frames) == 0:
+            print("No se encontraron frames")
             return []
             
         # Si hay menos frames que el objetivo, devolver todos
-        if len(features) <= self.target_frames:
-            return [frame for _, frame in valid_frames]
+        if len(frames) <= self.target_frames:
+            print(f"Video tiene {len(frames)} frames, menor que objetivo {self.target_frames}")
+            return frames
             
-        # Usar K-means para agrupar frames similares
-        n_clusters = min(self.target_frames, len(features))
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-        clusters = kmeans.fit_predict(features)
+        # Calcular el paso para distribución uniforme
+        step = len(frames) / self.target_frames
+        selected_frames = []
         
-        representative_frames = []
-        
-        # Seleccionar el frame más cercano al centroide de cada cluster
-        for cluster_id in range(n_clusters):
-            cluster_indices = np.where(clusters == cluster_id)[0]
-            cluster_features = features[cluster_indices]
-            cluster_center = kmeans.cluster_centers_[cluster_id]
+        # Seleccionar frames uniformemente
+        for i in range(self.target_frames):
+            frame_index = int(i * step)
+            # Asegurar que no excedamos el índice
+            frame_index = min(frame_index, len(frames) - 1)
+            selected_frames.append(frames[frame_index])
             
-            # Encontrar el frame más cercano al centro del cluster
-            distances = np.linalg.norm(cluster_features - cluster_center, axis=1)
-            closest_idx = cluster_indices[np.argmin(distances)]
-            
-            representative_frames.append(valid_frames[closest_idx][1])
-            
-        return representative_frames
+        print(f"Seleccionados {len(selected_frames)} frames con paso {step:.2f}")
+        return selected_frames
     
     def process_video(self, video_path, output_dir=None):
         """
-        Procesa un video completo y extrae frames representativos
+        Procesa un video completo y extrae frames uniformemente
         
         Args:
             video_path (str): Ruta al video
             output_dir (str): Directorio de salida (opcional)
             
         Returns:
-            list: Lista de frames representativos
+            list: Lista de frames seleccionados
         """
         print(f"Procesando video: {video_path}")
         
@@ -183,19 +176,15 @@ class FrameExtractor:
             
         print(f"Frames extraídos: {len(frames)}")
         
-        # Calcular características
-        features, valid_frames = self.calculate_frame_features(frames)
-        print(f"Frames válidos con detecciones: {len(valid_frames)}")
-        
-        # Seleccionar frames representativos
-        representative_frames = self.select_representative_frames(features, valid_frames)
-        print(f"Frames representativos seleccionados: {len(representative_frames)}")
+        # Seleccionar frames uniformemente
+        selected_frames = self.select_uniform_frames(frames)
+        print(f"Frames seleccionados: {len(selected_frames)}")
         
         # Guardar frames si se especifica directorio de salida
         if output_dir:
-            self.save_frames(representative_frames, output_dir, video_path)
+            self.save_frames(selected_frames, output_dir, video_path)
             
-        return representative_frames
+        return selected_frames
     
     def save_frames(self, frames, output_dir, video_path):
         """
@@ -297,8 +286,8 @@ def main():
     """Función principal para ejecutar el extractor de frames"""
     extractor = FrameExtractor(target_frames=30)
     
-    print("=== Extractor de Frames Representativos para LSA ===")
-    print("Este script procesará todos los videos y extraerá 30 frames representativos de cada uno.")
+    print("=== Extractor de Frames Uniformes para LSA ===")
+    print("Este script procesará todos los videos y extraerá 30 frames uniformemente distribuidos de cada uno.")
     
     # Procesar todos los videos
     summary = extractor.process_all_phrases()
@@ -316,6 +305,7 @@ def main():
             
         print(f"\nResultados guardados en: processed_frames/")
         print("Siguiente paso: Ejecutar landmark_extractor.py para extraer landmarks de estos frames")
+        print("Nota: Los frames se extraen ahora de manera uniforme a lo largo del video")
 
 
 if __name__ == "__main__":
