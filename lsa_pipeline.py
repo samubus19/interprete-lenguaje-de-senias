@@ -128,26 +128,26 @@ class LSAPipeline:
             print("✗ Error en la creación del dataset")
             return False
     
-    def step4_train_holistic_model(self):
-        """Paso 4: Entrenar modelo holístico básico"""
-        print("\n=== PASO 4: ENTRENAMIENTO DE MODELO HOLÍSTICO ===")
+    def step3_process_sequences(self):
+        """Paso 3: Procesar secuencias de frames para LSTM"""
+        print("\n=== PASO 3: PROCESAMIENTO DE SECUENCIAS ===")
         
-        if not os.path.exists(self.config['landmarks_dir']):
-            print(f"Error: Directorio de landmarks '{self.config['landmarks_dir']}' no existe")
-            print("Ejecuta el paso 2 primero")
+        if not os.path.exists(self.config['frames_dir']):
+            print(f"Error: Directorio de frames '{self.config['frames_dir']}' no existe")
+            print("Ejecuta el paso 1 primero")
             return False
         
-        # Usar el nuevo script de entrenamiento holístico
-        cmd = [sys.executable, 'train_holistic_model.py']
+        # Usar el procesador de secuencias
+        cmd = [sys.executable, 'sequence_data_processor.py']
         
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
             
             if result.returncode == 0:
-                print("✓ Modelo holístico entrenado exitosamente")
+                print("✓ Secuencias procesadas exitosamente")
                 return True
             else:
-                print("✗ Error en el entrenamiento del modelo")
+                print("✗ Error procesando secuencias")
                 if result.stderr:
                     print("Error:", result.stderr)
                 if result.stdout:
@@ -155,7 +155,38 @@ class LSAPipeline:
                 return False
                 
         except Exception as e:
-            print(f"✗ Error ejecutando entrenamiento: {e}")
+            print(f"✗ Error ejecutando procesamiento: {e}")
+            return False
+    
+    def step4_train_lstm_model(self):
+        """Paso 4: Entrenar modelo LSTM"""
+        print("\n=== PASO 4: ENTRENAMIENTO DE MODELO LSTM ===")
+        
+        dataset_file = os.path.join('models', 'sequence_dataset.pkl')
+        if not os.path.exists(dataset_file):
+            print(f"Error: Dataset de secuencias '{dataset_file}' no existe")
+            print("Ejecuta el paso 3 primero")
+            return False
+        
+        # Usar el script de entrenamiento LSTM
+        cmd = [sys.executable, 'train_lstm_model.py']
+        
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
+            
+            if result.returncode == 0:
+                print("✓ Modelo LSTM entrenado exitosamente")
+                return True
+            else:
+                print("✗ Error en el entrenamiento del modelo LSTM")
+                if result.stderr:
+                    print("Error:", result.stderr)
+                if result.stdout:
+                    print("Output:", result.stdout)
+                return False
+                
+        except Exception as e:
+            print(f"✗ Error ejecutando entrenamiento LSTM: {e}")
             return False
     
     def step5_setup_gloss_converter(self):
@@ -198,7 +229,8 @@ class LSAPipeline:
         steps = [
             ("Extracción de frames", self.step1_extract_frames),
             ("Extracción de landmarks", self.step2_extract_landmarks),
-            ("Entrenamiento de modelo holístico", self.step4_train_holistic_model),
+            ("Procesamiento de secuencias", self.step3_process_sequences),
+            ("Entrenamiento de modelo LSTM", self.step4_train_lstm_model),
             ("Configuración de convertidor", self.step5_setup_gloss_converter)
         ]
         
@@ -250,8 +282,8 @@ class LSAPipeline:
         steps_map = {
             'frames': self.step1_extract_frames,
             'landmarks': self.step2_extract_landmarks,
-            'dataset': self.step3_create_dataset,
-            'train': self.step4_train_holistic_model,
+            'sequences': self.step3_process_sequences,
+            'train': self.step4_train_lstm_model,
             'gloss': self.step5_setup_gloss_converter
         }
         
@@ -294,7 +326,7 @@ def main():
     parser = argparse.ArgumentParser(description='Pipeline completo para traductor LSA')
     parser.add_argument('--config', type=str, help='Archivo de configuración')
     parser.add_argument('--step', type=str, 
-                       choices=['frames', 'landmarks', 'dataset', 'train', 'gloss'],
+                       choices=['frames', 'landmarks', 'sequences', 'train', 'gloss'],
                        help='Ejecutar solo un paso específico')
     parser.add_argument('--create-config', action='store_true',
                        help='Crear archivo de configuración de ejemplo')

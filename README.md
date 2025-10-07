@@ -1,17 +1,16 @@
-# Traductor de Lengua de Señas Argentina (LSA) a Texto
+#  Traductor de Lengua de Señas Argentina (LSA) a Texto
 
-Sistema completo de traducción de LSA a texto natural utilizando arquitectura de dos etapas:
-1. **Modelo de secuencias**: Video → Glosas (palabras individuales)
-2. **Procesamiento de lenguaje natural**: Glosas → Texto natural
+Sistema completo de traducción de LSA a texto natural utilizando **modelo LSTM con landmarks holísticos**.
 
-## Características Principales
+##  Características principales
 
-- **Pipeline completo automatizado** para procesamiento de videos LSA
-- **Extracción inteligente de frames** representativos usando clustering
-- **Landmarks holísticos** con MediaPipe (manos, pose, cara)
-- **Modelos de secuencias avanzados** (LSTM, GRU, Transformer)
-- **Conversión glosas → texto** con múltiples métodos (OpenAI, Transformers, Reglas)
-- **Interfaz de grabación automática** para recolección de datos
+- **Modelo LSTM avanzado** para reconocimiento de secuencias LSA
+- **Landmarks holísticos** con MediaPipe (1662 características: pose + manos + cara)
+- **Procesamiento de secuencias** de 30 frames por video
+- **Data augmentation** automático para evitar overfitting
+- **Aplicación en tiempo real** con buffer de secuencias
+- **Pipeline completo automatizado** desde grabación hasta predicción
+- **Prevención de overfitting** con técnicas avanzadas
 
 ## Requisitos
 
@@ -59,197 +58,331 @@ source venv/Scripts/activate  # Windows Git Bash
 pip install -r requirements.txt
 ```
 
-## Uso del Sistema
+## 🚀 Guía de Uso Completa
 
-### Opción 1: Pipeline Completo Automatizado
+### ⚡ Inicio Rápido (Para Principiantes)
+
+Si es tu primera vez usando el sistema, sigue estos pasos:
+
 ```bash
-# Ejecutar todo el pipeline de una vez
-python lsa_pipeline.py
+# 1. Grabar videos de señas
+python video_collector.py
 
-# Con configuración personalizada
-python lsa_pipeline.py --config mi_config.json
+# 2. Procesar videos a secuencias de landmarks
+python sequence_data_processor.py
 
-# Crear archivo de configuración
-python lsa_pipeline.py --create-config
+# 3. Entrenar modelo LSTM (automático con data augmentation)
+python train_lstm_model.py
+
+# 4. Usar la aplicación en tiempo real
+python app_holistic.py
 ```
 
-### Opción 2: Paso a Paso
+### 📋 Pipeline Completo Paso a Paso
 
-#### 1. Grabar Videos de Frases
+#### **Paso 1: Grabación de Videos** 📹
 ```bash
 python video_collector.py
 ```
+**¿Qué hace?**
 - Graba videos automáticamente al detectar manos
-- Estructura: `./videos/FRASE/1.avi`
-- Modo automático o manual disponible
+- Estructura: `./Videos/FRASE/1.avi`
+- **Recomendación**: Graba al menos 50-100 videos por seña
 
-#### 2. Procesar Videos → Frames → Landmarks → Dataset
+#### **Paso 2: Procesamiento de Secuencias** 🔄
 ```bash
-# Extraer 30 frames representativos por video
-python frame_extractor.py
-
-# Extraer landmarks con MediaPipe Holistic
-python landmark_extractor.py
-
-# O ejecutar ambos pasos:
-python lsa_pipeline.py --step frames
-python lsa_pipeline.py --step landmarks
-python lsa_pipeline.py --step dataset
+python sequence_data_processor.py
 ```
+**¿Qué hace?**
+- Extrae 30 frames representativos por video
+- Extrae 1662 landmarks holísticos por frame (pose + manos + cara)
+- Crea dataset de secuencias: `models/sequence_dataset.pkl`
 
-#### 3. Entrenar Modelo de Secuencias
+#### **Paso 3: Data Augmentation (Opcional pero Recomendado)** 📊
 ```bash
-# Entrenar modelo LSTM (por defecto)
-python train_sequence_model.py
+python data_augmentation.py
+```
+**¿Qué hace?**
+- Aumenta el dataset 20x (25 → 500 secuencias)
+- Aplica transformaciones: ruido, desplazamiento temporal, variaciones de velocidad
+- Previene overfitting con pocos datos
 
-# Entrenar modelo específico
-python train_sequence_model.py --model_type transformer --epochs 100
+#### **Paso 4: Entrenamiento del Modelo LSTM** 🧠
+```bash
+# Modo automático (recomendado)
+python train_lstm_model.py
 
-# O usando el pipeline
+# Forzar dataset original (cuando tengas muchos videos)
+python train_lstm_model.py --dataset original --no-augmentation
+
+# Personalizar entrenamiento
+python train_lstm_model.py --epochs 50 --batch-size 32
+```
+**¿Qué hace?**
+- Entrena modelo LSTM con arquitectura optimizada
+- Detecta automáticamente qué dataset usar
+- Aplica técnicas anti-overfitting (dropout, early stopping, regularización)
+
+#### **Paso 5: Usar la Aplicación** 🎯
+```bash
+python app_holistic.py
+```
+**¿Qué hace?**
+- Aplicación en tiempo real con cámara web
+- Buffer de secuencias de 30 frames
+- Predicciones suavizadas y estables
+
+### 🔧 Pipeline Automatizado (Avanzado)
+```bash
+# Ejecutar todo el pipeline
+python lsa_pipeline.py
+
+# Ejecutar pasos específicos
+python lsa_pipeline.py --step sequences
 python lsa_pipeline.py --step train
 ```
 
-#### 4. Configurar Conversión de Glosas
-```bash
-# Probar convertidor de glosas
-python gloss_to_text.py
-
-# O usando el pipeline
-python lsa_pipeline.py --step gloss
-```
-
-#### 5. Usar la Aplicación Completa
-```bash
-python app.py
-```
-
-## Estructura del Proyecto
+## 📁 Estructura del Proyecto
 
 ```
 interprete-lenguaje-de-senias/
-├── Core Scripts
-│   ├── lsa_pipeline.py           # Pipeline completo automatizado
-│   ├── video_collector.py        # Grabación automática de videos
-│   ├── frame_extractor.py        # Extracción de frames representativos
-│   ├── landmark_extractor.py     # Extracción de landmarks holísticos
-│   ├── train_sequence_model.py   # Entrenamiento de modelos
-│   ├── gloss_to_text.py         # Conversión glosas → texto
-│   └── app.py                   # Aplicación principal
+├── 🎯 Scripts Principales (LSTM Pipeline)
+│   ├── video_collector.py          # Grabación automática de videos
+│   ├── sequence_data_processor.py  # Videos → Secuencias de landmarks
+│   ├── data_augmentation.py        # Aumento artificial de datos
+│   ├── train_lstm_model.py         # Entrenamiento modelo LSTM
+│   ├── app_holistic.py            # Aplicación en tiempo real
+│   └── test_lstm_pipeline.py       # Pruebas del sistema completo
 │
-├── model/
-│   ├── sequence_model.py        # Modelos LSTM/GRU/Transformer
-│   └── sign_recognizer.py       # Modelo básico (legacy)
+├── 🔧 Scripts de Soporte
+│   ├── lsa_pipeline.py             # Pipeline automatizado
+│   ├── test_lighting_effect.py     # Pruebas de iluminación
+│   └── train_holistic_model.py     # Modelo holístico (legacy)
 │
-├── data/
-│   └── signs.json              # Definiciones de frases y glosas
+├── 🧠 model/
+│   ├── lstm_sign_recognizer.py     # Reconocedor LSTM principal
+│   ├── holistic_sign_recognizer.py # Reconocedor holístico (legacy)
+│   └── sign_recognizer.py          # Modelo básico (legacy)
 │
-├── Directorios Generados
-│   ├── videos/                 # Videos grabados por frase
-│   ├── processed_frames/       # Frames extraídos
-│   ├── landmarks_data/         # Landmarks procesados
-│   ├── dataset/               # Dataset unificado
-│   ├── models/                # Modelos entrenados
-│   └── results/               # Resultados y análisis
+├── 📊 data/
+│   └── signs.json                  # Definiciones de señas
 │
-└── Setup
+├── 📁 Directorios Generados
+│   ├── Videos/                     # Videos grabados por seña
+│   ├── processed_frames/           # Frames extraídos (30 por video)
+│   ├── models/                     # Modelos entrenados y datasets
+│   │   ├── sequence_dataset.pkl    # Dataset original
+│   │   ├── sequence_dataset_augmented.pkl # Dataset aumentado
+│   │   ├── lsa_lstm_model.h5       # Modelo LSTM entrenado
+│   │   └── lsa_lstm_model_metadata.json # Metadatos del modelo
+│   └── results/                    # Gráficos y análisis
+│
+└── ⚙️ Setup
     ├── requirements.txt
     ├── setup_env_gitbash.sh
     ├── setup_env.bat
     └── setup_env.sh
 ```
 
-## Configuración Avanzada
+## 🧠 Arquitectura del Modelo LSTM
 
-### Archivo de Configuración (`lsa_config.json`)
-```json
-{
-    "videos_dir": "videos",
-    "target_frames": 30,
-    "model_type": "lstm",
-    "gloss_method": "rules",
-    "openai_api_key": "tu-api-key-aqui"
-}
+### **Especificaciones Técnicas**
+- **Entrada**: Secuencias de 30 frames × 1662 keypoints
+- **Arquitectura**: LSTM bidireccional de 2 capas
+- **Keypoints**: Pose (132) + Cara (1404) + Manos (126) = 1662 total
+- **Salida**: Clasificación multiclase (softmax)
+
+### **Estructura del Modelo**
+```python
+Sequential([
+    LSTM(64, return_sequences=True, bidirectional=True),
+    Dropout(0.5),
+    LSTM(128, return_sequences=False, bidirectional=True), 
+    Dropout(0.5),
+    Dense(64, activation='relu'),
+    Dense(64, activation='relu'),
+    Dense(num_classes, activation='softmax')
+])
 ```
 
-### Métodos de Conversión de Glosas
+### **Técnicas Anti-Overfitting**
+- ✅ **Dropout**: 0.5 en capas LSTM
+- ✅ **Regularización L2**: 0.01 y 0.001
+- ✅ **Early Stopping**: Paciencia de 15 épocas
+- ✅ **ReduceLROnPlateau**: Factor 0.5, paciencia 8
+- ✅ **Data Augmentation**: 20x aumento de datos
 
-1. **Reglas Gramaticales** (por defecto)
-   - Sin dependencias externas
-   - Rápido y eficiente
-   - Bueno para frases simples
+## 📊 Recomendaciones de Dataset
 
-2. **OpenAI API** (recomendado)
-   - Mejor calidad de traducción
-   - Requiere API key
-   - Costo por uso
+### **🎯 Cantidad de Videos Recomendada**
 
-3. **Transformers Locales**
-   - Sin costos de API
-   - Requiere más recursos
-   - Personalizable
+| Nivel | Videos por Seña | Total (5 señas) | Resultado Esperado |
+|-------|----------------|-----------------|-------------------|
+| **Mínimo** | 50-100 | 250-500 | Funciona básicamente |
+| **Recomendado** | 200-500 | 1000-2500 | Buen rendimiento |
+| **Óptimo** | 1000+ | 5000+ | Excelente precisión |
+| **Tu actual** | 5 | 25 | ❌ **Requiere data augmentation** |
 
-### Configurar OpenAI (Opcional)
+### **🎬 Variabilidad Necesaria**
+
+#### **Prioridad Alta:**
+- 🥇 **Diferentes personas** (5-10 mínimo)
+- 🥈 **Diferentes velocidades** (lenta, normal, rápida)
+- 🥉 **Diferentes condiciones de luz** (natural, artificial)
+
+#### **Prioridad Media:**
+- 📐 **Diferentes ángulos** (frontal, ligeramente lateral)
+- 👕 **Diferentes ropa** (evitar que el modelo se enfoque en colores)
+- 🏠 **Diferentes fondos** (variedad de backgrounds)
+
+### **⚠️ Indicadores de Problemas**
+
+#### **Overfitting:**
+- Accuracy entrenamiento > 95%, Validation accuracy < 70%
+- Loss de entrenamiento muy bajo, validation loss alto
+- **Solución**: Más data augmentation, más dropout
+
+#### **Underfitting:**
+- Ambas accuracies < 60% y estables
+- Loss no mejora después de muchas épocas
+- **Solución**: Modelo más complejo, menos regularización
+
+#### **Dataset Pequeño:**
+- Alta varianza entre epochs
+- Resultados muy diferentes en cada entrenamiento
+- **Solución**: Data augmentation, más videos
+
+## 🔧 Configuración Avanzada
+
+### **Argumentos de `train_lstm_model.py`**
 ```bash
-# Opción 1: Variable de entorno
-export OPENAI_API_KEY="tu-api-key"
+# Usar dataset original (cuando tengas muchos videos)
+python train_lstm_model.py --dataset original
 
-# Opción 2: En el archivo de configuración
-# Editar lsa_config.json y agregar tu API key
+# Usar dataset aumentado (recomendado para pocos videos)
+python train_lstm_model.py --dataset augmented
+
+# Modo automático (detecta qué usar)
+python train_lstm_model.py --dataset auto
+
+# Personalizar entrenamiento
+python train_lstm_model.py --epochs 50 --batch-size 32
+
+# Modo no interactivo (para scripts)
+python train_lstm_model.py --no-augmentation
 ```
 
-## Ejemplos de Uso
+### **Parámetros de Data Augmentation**
+```python
+# En data_augmentation.py puedes modificar:
+augmentation_factor = 20    # Factor de aumento (20x más datos)
+noise_factor = 0.01        # Cantidad de ruido gaussiano
+shift_range = 3            # Desplazamiento temporal máximo
+speed_range = (0.8, 1.2)   # Variación de velocidad
+```
 
-### Frases de Ejemplo Incluidas
-- "YO COMPRAR CARNE" → "Yo voy a comprar carne"
-- "MAMÁ COCINAR COMIDA RICA" → "Mamá cocina comida rica"
-- "MAÑANA TRABAJO IR" → "Mañana voy a trabajar"
-- "HERMANO PELOTA JUGAR" → "Mi hermano juega a la pelota"
+### 📝 Agregar Nuevas Señas
+1. **Grabar videos**: `python video_collector.py`
+2. **Procesar**: `python sequence_data_processor.py`
+3. **Entrenar**: `python train_lstm_model.py`
 
-### Agregar Nuevas Frases
-1. Editar `data/signs.json`
-2. Grabar videos con `video_collector.py`
-3. Ejecutar pipeline completo
+## 🔍 Pruebas y Verificación
 
-## Solución de Problemas
-
-### Error: "No se encontró el directorio de videos"
+### **Verificar que Todo Funciona**
 ```bash
-# Crear videos primero
+python test_lstm_pipeline.py
+```
+**¿Qué verifica?**
+- ✅ Frames procesados existentes
+- ✅ Dataset de secuencias creado
+- ✅ Modelo LSTM entrenado
+- ✅ Reconocedor funcionando
+
+### **Probar Efectos de Iluminación**
+```bash
+python test_lighting_effect.py
+```
+**¿Para qué sirve?**
+- Mide cómo afecta la luz a la detección de landmarks
+- Te dice las mejores condiciones para grabar
+
+## 🚨 Solución de Problemas
+
+### **Error: "Modelo LSTM no encontrado"**
+```bash
+# Solución: Entrenar el modelo primero
+python sequence_data_processor.py
+python train_lstm_model.py
+```
+
+### **Error: "Dataset no encontrado"**
+```bash
+# Solución: Procesar videos primero
+python sequence_data_processor.py
+```
+
+### **Error: "No se encontraron frames procesados"**
+```bash
+# Solución: Grabar videos primero
 python video_collector.py
 ```
 
-### Error: "Dataset no encontrado"
+### **Overfitting Detectado (Accuracy train >> validation)**
 ```bash
-# Ejecutar pasos previos
-python lsa_pipeline.py --step frames
-python lsa_pipeline.py --step landmarks
-python lsa_pipeline.py --step dataset
+# Solución 1: Usar data augmentation
+python data_augmentation.py
+python train_lstm_model.py --dataset augmented
+
+# Solución 2: Grabar más videos
+python video_collector.py  # Grabar 50+ por seña
+python train_lstm_model.py --dataset original
 ```
 
-### Error: "Modelo de spaCy no encontrado"
+### **Underfitting (Ambas accuracies bajas)**
 ```bash
-python -m spacy download es_core_news_sm
+# Solución: Entrenar más tiempo o cambiar parámetros
+python train_lstm_model.py --epochs 200 --batch-size 8
 ```
 
-### Problemas de Memoria
-- Reducir `target_frames` en configuración
-- Usar modelo `lstm` en lugar de `transformer`
-- Procesar menos videos a la vez
+### **Predicciones Inestables en Tiempo Real**
+- **Causa**: Buffer de secuencias no lleno
+- **Solución**: Espera a que se llene el buffer (30 frames)
+- **Indicador**: Barra de progreso en la aplicación
 
-## Próximas Mejoras
+### **Problemas de Memoria**
+```bash
+# Reducir batch size
+python train_lstm_model.py --batch-size 8
 
-- [ ] Interfaz web con Flask/FastAPI
-- [ ] Soporte para video en tiempo real
-- [ ] Más modelos de NLP para glosas
-- [ ] Dataset público de LSA
-- [ ] Métricas de evaluación automática
-- [ ] Soporte para múltiples idiomas de señas
+# O usar menos data augmentation
+# Editar data_augmentation.py: augmentation_factor = 10
+```
 
-## Notas de Desarrollo
+## 🚀 Próximas Mejoras
 
-Este sistema implementa un enfoque innovador de dos etapas para la traducción de LSA:
+- [ ] **Más señas**: Expandir vocabulario LSA
+- [ ] **Interfaz web**: Flask/FastAPI para uso remoto
+- [ ] **Modelo Transformer**: Para mayor precisión
+- [ ] **Dataset público**: Compartir datos de LSA
+- [ ] **Métricas avanzadas**: Evaluación automática
+- [ ] **Multi-persona**: Reconocimiento simultáneo
 
-1. **Primera etapa**: Convierte secuencias de video a glosas usando modelos de deep learning
-2. **Segunda etapa**: Transforma glosas a texto natural usando NLP
+## 📚 Notas Técnicas
 
-La arquitectura permite entrenar cada etapa independientemente y combinar diferentes enfoques según las necesidades específicas.
+### **Arquitectura del Sistema**
+Este sistema implementa un enfoque de **una etapa** optimizado:
+- **Entrada**: Video de señas LSA
+- **Procesamiento**: Extracción de landmarks holísticos
+- **Modelo**: LSTM bidireccional para secuencias
+- **Salida**: Clasificación directa de señas
+
+### **Diferencias con Sistemas Tradicionales**
+- ✅ **Landmarks vs Píxeles**: Más eficiente y robusto
+- ✅ **Secuencias vs Frames**: Captura el movimiento temporal
+- ✅ **LSTM vs CNN**: Mejor para patrones temporales
+- ✅ **Holístico vs Solo Manos**: Más información contextual
+
+### **Rendimiento Esperado**
+- **Con 25 videos + augmentation**: ~70-80% accuracy
+- **Con 100+ videos por seña**: ~85-95% accuracy
+- **Con 500+ videos por seña**: ~95%+ accuracy

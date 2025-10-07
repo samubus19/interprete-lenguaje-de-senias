@@ -2,25 +2,25 @@ import sys
 import cv2
 import mediapipe as mp
 import numpy as np
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QTextEdit, QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QTextEdit, QHBoxLayout, QProgressBar
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QImage, QPixmap, QFont
-from model.holistic_sign_recognizer import HolisticSignRecognizer
+from model.lstm_sign_recognizer import LSTMSignRecognizer
 
-class HolisticSignLanguageApp(QMainWindow):
+class LSTMSignLanguageApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Intérprete LSA - Modelo Holístico")
+        self.setWindowTitle("Intérprete LSA - Modelo LSTM")
         self.setGeometry(100, 100, 1400, 900)
 
-        # Inicializar el reconocedor holístico
-        self.recognizer = HolisticSignRecognizer()
+        # Inicializar el reconocedor LSTM
+        self.recognizer = LSTMSignRecognizer(model_path="models/lsa_lstm_model.h5")
         
         # Variables de estado
         self.current_phrase = ""
         self.last_prediction = None
         self.prediction_count = 0
-        self.min_predictions = 3  # Mínimo de predicciones consistentes
+        self.min_predictions = 2  # Mínimo de predicciones consistentes para LSTM
 
         # Configuración de MediaPipe para dibujo
         self.mp_drawing = mp.solutions.drawing_utils
@@ -34,7 +34,7 @@ class HolisticSignLanguageApp(QMainWindow):
         # Timer para actualizar frames
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(100)  # 10 FPS para mejor rendimiento
+        self.timer.start(150)  # ~7 FPS para LSTM (más lento pero más preciso)
 
         # Configurar interfaz
         self.setup_ui()
@@ -47,7 +47,7 @@ class HolisticSignLanguageApp(QMainWindow):
             self.status_label.setText("❌ MODELO NO CARGADO - Entrena el modelo primero")
             self.status_label.setStyleSheet("color: red; font-weight: bold;")
         else:
-            self.status_label.setText("✅ Modelo holístico listo")
+            self.status_label.setText("✅ Modelo LSTM listo")
             self.status_label.setStyleSheet("color: green; font-weight: bold;")
 
     def setup_ui(self):
@@ -87,7 +87,7 @@ class HolisticSignLanguageApp(QMainWindow):
         right_panel = QVBoxLayout()
         
         # Título
-        title_label = QLabel("🤟 Traductor LSA Holístico")
+        title_label = QLabel("🤟 Traductor LSA LSTM")
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setFont(QFont("Arial", 16, QFont.Bold))
         right_panel.addWidget(title_label)
@@ -115,6 +115,17 @@ class HolisticSignLanguageApp(QMainWindow):
         self.confidence_label.setAlignment(Qt.AlignCenter)
         self.confidence_label.setFont(QFont("Arial", 10))
         right_panel.addWidget(self.confidence_label)
+        
+        # Barra de progreso del buffer
+        buffer_label = QLabel("Buffer de Secuencia:")
+        buffer_label.setFont(QFont("Arial", 10, QFont.Bold))
+        right_panel.addWidget(buffer_label)
+        
+        self.buffer_progress = QProgressBar()
+        self.buffer_progress.setMaximum(30)  # max_sequence_length
+        self.buffer_progress.setTextVisible(True)
+        self.buffer_progress.setFormat("%v/%m frames")
+        right_panel.addWidget(self.buffer_progress)
         
         # Texto acumulado
         accumulated_label = QLabel("Frases Reconocidas:")
@@ -152,34 +163,46 @@ class HolisticSignLanguageApp(QMainWindow):
         frame = cv2.flip(frame, 1)
         
         if self.is_processing and self.recognizer.is_model_loaded():
-            # Hacer predicción
-            prediction = self.recognizer.predict(frame, threshold=0.5)
+            # Actualizar buffer de secuencia
+            has_detection = self.recognizer.update_sequence_buffer(frame)
+            
+            # Actualizar barra de progreso
+            buffer_status = self.recognizer.get_buffer_status()
+            self.buffer_progress.setValue(buffer_status['sequence_buffer_size'])
+            
+            # Hacer predicción solo si el buffer está lleno
+            prediction = None
+            if buffer_status['is_ready']:
+                prediction = self.recognizer.predict_sequence(threshold=0.6)
             
             if prediction:
-                phrase = prediction['phrase']
+                sign = prediction['sign']
                 confidence = prediction['confidence']
                 
                 # Actualizar predicción actual
-                self.current_prediction_label.setText(phrase.replace('_', ' '))
-                self.confidence_label.setText(f"Confianza: {confidence:.1%}")
+                self.current_prediction_label.setText(sign.replace('_', ' '))
+                self.confidence_label.setText(f"Confianza: {confidence:.1%} ({prediction.get('buffer_count', 0)}/{prediction.get('buffer_size', 0)})")
                 
-                # Lógica para agregar frases al texto acumulado
-                if phrase != self.last_prediction:
+                # Lógica para agregar señas al texto acumulado
+                if sign != self.last_prediction:
                     self.prediction_count = 1
-                    self.last_prediction = phrase
+                    self.last_prediction = sign
                 else:
                     self.prediction_count += 1
                 
                 # Si la predicción es consistente, agregarla al texto
                 if self.prediction_count >= self.min_predictions:
-                    if phrase not in self.current_phrase:
+                    if sign not in self.current_phrase:
                         if self.current_phrase:
                             self.current_phrase += " | "
-                        self.current_phrase += phrase.replace('_', ' ')
+                        self.current_phrase += sign.replace('_', ' ')
                         self.text_area.setText(self.current_phrase)
                         self.prediction_count = 0  # Reset counter
             else:
-                self.current_prediction_label.setText("Sin detección")
+                if buffer_status['is_ready']:
+                    self.current_prediction_label.setText("Sin detección")
+                else:
+                    self.current_prediction_label.setText(f"Llenando buffer... ({buffer_status['sequence_buffer_size']}/{buffer_status['sequence_buffer_max']})")
                 self.confidence_label.setText("Confianza: ---%")
             
             # Dibujar landmarks en el frame
@@ -260,13 +283,13 @@ class HolisticSignLanguageApp(QMainWindow):
         if self.is_processing:
             self.toggle_button.setText("⏸️ Detener Reconocimiento")
             self.toggle_button.setStyleSheet("background-color: #ff6b6b;")
-            self.status_label.setText("🔴 RECONOCIENDO...")
+            self.status_label.setText("🔴 RECONOCIENDO... (LSTM)")
             self.status_label.setStyleSheet("color: red; font-weight: bold;")
-            self.recognizer.reset_buffer()
+            self.recognizer.reset_buffers()
         else:
             self.toggle_button.setText("▶️ Iniciar Reconocimiento")
             self.toggle_button.setStyleSheet("")
-            self.status_label.setText("✅ Modelo holístico listo")
+            self.status_label.setText("✅ Modelo LSTM listo")
             self.status_label.setStyleSheet("color: green; font-weight: bold;")
             self.current_prediction_label.setText("---")
             self.confidence_label.setText("Confianza: ---%")
@@ -279,7 +302,8 @@ class HolisticSignLanguageApp(QMainWindow):
         self.confidence_label.setText("Confianza: ---%")
         self.last_prediction = None
         self.prediction_count = 0
-        self.recognizer.reset_buffer()
+        self.recognizer.reset_buffers()
+        self.buffer_progress.setValue(0)
 
     def closeEvent(self, event):
         """Limpia recursos al cerrar"""
@@ -291,13 +315,13 @@ def main():
     
     # Verificar si el modelo existe
     import os
-    if not os.path.exists("models/holistic_sign_model.h5"):
-        print("❌ Modelo holístico no encontrado!")
-        print("   Ejecuta: python train_holistic_model.py")
-        print("   O ejecuta: python lsa_pipeline.py --step train")
+    if not os.path.exists("models/lsa_lstm_model.h5"):
+        print("❌ Modelo LSTM no encontrado!")
+        print("   Ejecuta: python sequence_data_processor.py")
+        print("   Luego: python train_lstm_model.py")
         return
     
-    window = HolisticSignLanguageApp()
+    window = LSTMSignLanguageApp()
     window.show()
     sys.exit(app.exec_())
 
