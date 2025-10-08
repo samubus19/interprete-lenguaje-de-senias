@@ -15,15 +15,15 @@ class LSTMSignRecognizer:
             model_path (str): Ruta al modelo entrenado
             metadata_path (str): Ruta a los metadatos
         """
-        # Configurar MediaPipe Holistic
+        # Configurar MediaPipe Holistic (optimizado para rendimiento)
         self.mp_holistic = mp.solutions.holistic
         self.holistic = self.mp_holistic.Holistic(
             static_image_mode=False,
-            model_complexity=1,
+            model_complexity=0,  # Reducido de 1 a 0 para mejor rendimiento
             enable_segmentation=False,
             refine_face_landmarks=False,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+            min_detection_confidence=0.6,  # Aumentado para reducir falsos positivos
+            min_tracking_confidence=0.6   # Aumentado para mejor tracking
         )
         
         # Inicializar variables
@@ -157,6 +157,30 @@ class LSTMSignRecognizer:
         zero_keypoints = np.zeros(self.keypoints_length)
         self.sequence_buffer.append(zero_keypoints)
         return False
+    
+    def update_sequence_buffer_optimized(self, frame):
+        """
+        Versión optimizada que retorna también los resultados MediaPipe
+        para evitar doble procesamiento
+        
+        Args:
+            frame: Frame de video
+            
+        Returns:
+            tuple: (bool: True si se agregó keypoints válidos, MediaPipe results)
+        """
+        keypoints, results = self.extract_keypoints(frame)
+        
+        if keypoints is not None:
+            # Verificar si hay detecciones válidas
+            if np.sum(np.abs(keypoints)) > 0.1:  # No todo ceros
+                self.sequence_buffer.append(keypoints)
+                return True, results
+        
+        # Si no hay detecciones válidas, agregar ceros
+        zero_keypoints = np.zeros(self.keypoints_length)
+        self.sequence_buffer.append(zero_keypoints)
+        return False, results
     
     def predict_sequence(self, threshold=0.7):
         """

@@ -31,16 +31,19 @@ class LSTMSignLanguageApp(QMainWindow):
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
         
-        # Timer para actualizar frames
+        # Timer para actualizar frames (optimizado)
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(150)  # ~7 FPS para LSTM (más lento pero más preciso)
+        self.timer.start(200)  # ~5 FPS para LSTM (optimizado para rendimiento)
 
         # Configurar interfaz
         self.setup_ui()
         
         # Estado de procesamiento
         self.is_processing = False
+        
+        # Cache para resultados MediaPipe (evitar doble procesamiento)
+        self.last_results = None
         
         # Verificar si el modelo está cargado
         if not self.recognizer.is_model_loaded():
@@ -154,7 +157,7 @@ class LSTMSignLanguageApp(QMainWindow):
         main_layout.addLayout(right_panel, 1)  # 1/3 del espacio
 
     def update_frame(self):
-        """Actualiza el frame de video y procesa reconocimiento"""
+        """Actualiza el frame de video y procesa reconocimiento (optimizado)"""
         ret, frame = self.cap.read()
         if not ret:
             return
@@ -163,8 +166,9 @@ class LSTMSignLanguageApp(QMainWindow):
         frame = cv2.flip(frame, 1)
         
         if self.is_processing and self.recognizer.is_model_loaded():
-            # Actualizar buffer de secuencia
-            has_detection = self.recognizer.update_sequence_buffer(frame)
+            # Actualizar buffer de secuencia y obtener resultados MediaPipe
+            has_detection, results = self.recognizer.update_sequence_buffer_optimized(frame)
+            self.last_results = results  # Cache para dibujo
             
             # Actualizar barra de progreso
             buffer_status = self.recognizer.get_buffer_status()
@@ -205,51 +209,31 @@ class LSTMSignLanguageApp(QMainWindow):
                     self.current_prediction_label.setText(f"Llenando buffer... ({buffer_status['sequence_buffer_size']}/{buffer_status['sequence_buffer_max']})")
                 self.confidence_label.setText("Confianza: ---%")
             
-            # Dibujar landmarks en el frame
-            frame = self.draw_landmarks(frame)
+            # Dibujar landmarks en el frame usando cache
+            frame = self.draw_landmarks_optimized(frame)
         
         # Convertir frame para mostrar en Qt
         self.display_frame(frame)
 
-    def draw_landmarks(self, frame):
-        """Dibuja landmarks en el frame"""
+    def draw_landmarks_optimized(self, frame):
+        """Dibuja landmarks optimizado - solo manos como video_collector"""
         try:
-            results = self.recognizer.get_landmarks_for_drawing(frame)
-            
-            if results:
-                # Dibujar pose
-                if results.pose_landmarks:
+            if self.last_results:
+                # Solo dibujar manos para mejor rendimiento
+                if self.last_results.left_hand_landmarks:
                     self.mp_drawing.draw_landmarks(
-                        frame, results.pose_landmarks, 
-                        self.mp_holistic.POSE_CONNECTIONS,
-                        self.mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=2),
-                        self.mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2)
-                    )
-                
-                # Dibujar manos
-                if results.left_hand_landmarks:
-                    self.mp_drawing.draw_landmarks(
-                        frame, results.left_hand_landmarks, 
+                        frame, self.last_results.left_hand_landmarks, 
                         self.mp_holistic.HAND_CONNECTIONS,
-                        self.mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2, circle_radius=2),
-                        self.mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=2)
+                        self.mp_drawing.DrawingSpec(color=(121, 22, 76), thickness=1, circle_radius=4),
+                        self.mp_drawing.DrawingSpec(color=(121, 44, 250), thickness=1, circle_radius=2)
                     )
                 
-                if results.right_hand_landmarks:
+                if self.last_results.right_hand_landmarks:
                     self.mp_drawing.draw_landmarks(
-                        frame, results.right_hand_landmarks, 
+                        frame, self.last_results.right_hand_landmarks, 
                         self.mp_holistic.HAND_CONNECTIONS,
-                        self.mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=2),
-                        self.mp_drawing.DrawingSpec(color=(255, 0, 0), thickness=2)
-                    )
-                
-                # Dibujar cara (solo contorno)
-                if results.face_landmarks:
-                    self.mp_drawing.draw_landmarks(
-                        frame, results.face_landmarks, 
-                        self.mp_holistic.FACEMESH_CONTOURS,
-                        self.mp_drawing.DrawingSpec(color=(255, 255, 0), thickness=1, circle_radius=1),
-                        self.mp_drawing.DrawingSpec(color=(255, 255, 0), thickness=1)
+                        self.mp_drawing.DrawingSpec(color=(80, 22, 10), thickness=1, circle_radius=4),
+                        self.mp_drawing.DrawingSpec(color=(80, 44, 121), thickness=1, circle_radius=2)
                     )
         except Exception as e:
             print(f"Error dibujando landmarks: {e}")
@@ -302,6 +286,7 @@ class LSTMSignLanguageApp(QMainWindow):
         self.confidence_label.setText("Confianza: ---%")
         self.last_prediction = None
         self.prediction_count = 0
+        self.last_results = None  # Limpiar cache
         self.recognizer.reset_buffers()
         self.buffer_progress.setValue(0)
 

@@ -62,21 +62,36 @@ pip install -r requirements.txt
 
 ### ⚡ Inicio Rápido (Para Principiantes)
 
-Si es tu primera vez usando el sistema, sigue estos pasos:
+Si es tu primera vez usando el sistema, tienes **2 opciones**:
 
+#### **Opción 1: Pipeline Automatizado (Recomendado) 🤖**
+```bash
+# Ejecuta todo el pipeline completo automáticamente
+python lstm_pipeline.py
+```
+
+#### **Opción 2: Paso a Paso Manual 🔧**
 ```bash
 # 1. Grabar videos de señas
 python video_collector.py
 
-# 2. Procesar videos a secuencias de landmarks
+# 2. Extraer frames de los videos (30 por video)
+python frame_extractor.py
+
+# 3. Procesar frames a secuencias de landmarks
 python sequence_data_processor.py
 
-# 3. Entrenar modelo LSTM (automático con data augmentation)
+# 4. Data augmentation (aumenta datos 20x)
+python data_augmentation.py
+
+# 5. Entrenar modelo LSTM
 python train_lstm_model.py
 
-# 4. Usar la aplicación en tiempo real
+# 6. Usar la aplicación en tiempo real
 python app_holistic.py
 ```
+
+> **💡 Recomendación**: Usa la **Opción 1** si es tu primera vez. El pipeline automatizado maneja errores y te guía paso a paso.
 
 ### 📋 Pipeline Completo Paso a Paso
 
@@ -86,19 +101,28 @@ python video_collector.py
 ```
 **¿Qué hace?**
 - Graba videos automáticamente al detectar manos
-- Estructura: `./Videos/FRASE/1.avi`
+- Estructura: `./videos/FRASE/1.avi`
 - **Recomendación**: Graba al menos 50-100 videos por seña
 
-#### **Paso 2: Procesamiento de Secuencias** 🔄
+#### **Paso 2: Extracción de Frames** 🎬
+```bash
+python frame_extractor.py
+```
+**¿Qué hace?**
+- Lee videos de `videos/FRASE/X.avi`
+- Extrae 30 frames uniformes por video
+- Guarda frames en `processed_frames/FRASE/video_X/frame_001.jpg`
+
+#### **Paso 3: Procesamiento de Secuencias** 🔄
 ```bash
 python sequence_data_processor.py
 ```
 **¿Qué hace?**
-- Extrae 30 frames representativos por video
+- Lee frames de `processed_frames/`
 - Extrae 1662 landmarks holísticos por frame (pose + manos + cara)
 - Crea dataset de secuencias: `models/sequence_dataset.pkl`
 
-#### **Paso 3: Data Augmentation (Opcional pero Recomendado)** 📊
+#### **Paso 4: Data Augmentation (Opcional pero Recomendado)** 📊
 ```bash
 python data_augmentation.py
 ```
@@ -107,7 +131,7 @@ python data_augmentation.py
 - Aplica transformaciones: ruido, desplazamiento temporal, variaciones de velocidad
 - Previene overfitting con pocos datos
 
-#### **Paso 4: Entrenamiento del Modelo LSTM** 🧠
+#### **Paso 5: Entrenamiento del Modelo LSTM** 🧠
 ```bash
 # Modo automático (recomendado)
 python train_lstm_model.py
@@ -123,7 +147,7 @@ python train_lstm_model.py --epochs 50 --batch-size 32
 - Detecta automáticamente qué dataset usar
 - Aplica técnicas anti-overfitting (dropout, early stopping, regularización)
 
-#### **Paso 5: Usar la Aplicación** 🎯
+#### **Paso 6: Usar la Aplicación** 🎯
 ```bash
 python app_holistic.py
 ```
@@ -132,15 +156,33 @@ python app_holistic.py
 - Buffer de secuencias de 30 frames
 - Predicciones suavizadas y estables
 
-### 🔧 Pipeline Automatizado (Avanzado)
+### 🔧 Pipeline Automatizado
+
+#### **🤖 Pipeline LSTM (Nuevo - Recomendado)**
 ```bash
-# Ejecutar todo el pipeline
+# Ejecutar todo el pipeline LSTM completo
+python lstm_pipeline.py
+
+# Ejecutar pasos específicos del pipeline LSTM
+python lstm_pipeline.py --step 1    # Extracción de frames
+python lstm_pipeline.py --step 2    # Procesamiento de secuencias
+python lstm_pipeline.py --step 3    # Data augmentation
+python lstm_pipeline.py --step 4    # Entrenamiento LSTM
+python lstm_pipeline.py --step 5    # Verificar aplicación lista
+```
+
+#### **🔧 Pipeline General (Legacy)**
+```bash
+# Ejecutar todo el pipeline general
 python lsa_pipeline.py
 
 # Ejecutar pasos específicos
-python lsa_pipeline.py --step sequences
-python lsa_pipeline.py --step train
+python lsa_pipeline.py --step frames      # Extraer frames
+python lsa_pipeline.py --step sequences   # Procesar secuencias
+python lsa_pipeline.py --step train       # Entrenar modelo
 ```
+
+> **🎯 Diferencia**: `lstm_pipeline.py` está optimizado específicamente para el flujo LSTM con data augmentation automático.
 
 ## 📁 Estructura del Proyecto
 
@@ -148,14 +190,18 @@ python lsa_pipeline.py --step train
 interprete-lenguaje-de-senias/
 ├── 🎯 Scripts Principales (LSTM Pipeline)
 │   ├── video_collector.py          # Grabación automática de videos
-│   ├── sequence_data_processor.py  # Videos → Secuencias de landmarks
+│   ├── frame_extractor.py          # Videos → Frames (30 por video)
+│   ├── sequence_data_processor.py  # Frames → Secuencias de landmarks
 │   ├── data_augmentation.py        # Aumento artificial de datos
 │   ├── train_lstm_model.py         # Entrenamiento modelo LSTM
 │   ├── app_holistic.py            # Aplicación en tiempo real
 │   └── test_lstm_pipeline.py       # Pruebas del sistema completo
 │
+├── 🤖 Pipelines Automatizados
+│   ├── lstm_pipeline.py            # Pipeline LSTM completo (NUEVO)
+│   └── lsa_pipeline.py             # Pipeline general (legacy)
+│
 ├── 🔧 Scripts de Soporte
-│   ├── lsa_pipeline.py             # Pipeline automatizado
 │   ├── test_lighting_effect.py     # Pruebas de iluminación
 │   └── train_holistic_model.py     # Modelo holístico (legacy)
 │
@@ -282,13 +328,34 @@ speed_range = (0.8, 1.2)   # Variación de velocidad
 ```
 
 ### 📝 Agregar Nuevas Señas
+
+#### **Método Automatizado (Recomendado)**
+```bash
+# 1. Grabar videos de nuevas señas
+python video_collector.py
+
+# 2. Ejecutar pipeline completo para reentrenar
+python lstm_pipeline.py
+```
+
+#### **Método Manual**
 1. **Grabar videos**: `python video_collector.py`
-2. **Procesar**: `python sequence_data_processor.py`
-3. **Entrenar**: `python train_lstm_model.py`
+2. **Extraer frames**: `python frame_extractor.py`
+3. **Procesar secuencias**: `python sequence_data_processor.py`
+4. **Data augmentation**: `python data_augmentation.py`
+5. **Entrenar modelo**: `python train_lstm_model.py`
 
 ## 🔍 Pruebas y Verificación
 
 ### **Verificar que Todo Funciona**
+
+#### **Verificación Automática (Recomendado)**
+```bash
+# El pipeline LSTM incluye verificación automática
+python lstm_pipeline.py --step 5
+```
+
+#### **Verificación Manual**
 ```bash
 python test_lstm_pipeline.py
 ```
@@ -308,23 +375,87 @@ python test_lighting_effect.py
 
 ## 🚨 Solución de Problemas
 
-### **Error: "Modelo LSTM no encontrado"**
+### **❌ Error Común: "Frases encontradas: []"**
+
+**Síntoma:**
+```
+=== PROCESADOR DE SECUENCIAS LSA ===
+Frases encontradas: []
+Error: No se pudieron procesar datos
+```
+
+**Causa:** El `sequence_data_processor.py` busca frames en `processed_frames/` pero no existen.
+
+**Solución Rápida (Recomendada):**
 ```bash
-# Solución: Entrenar el modelo primero
+# Usar el pipeline automatizado que maneja este error
+python lstm_pipeline.py
+```
+
+**Solución Manual:**
+```bash
+# 1. Verificar que tienes videos
+ls videos/  # Debe mostrar carpetas HOLA, CHAU, etc.
+
+# 2. Extraer frames de los videos PRIMERO
+python frame_extractor.py
+
+# 3. LUEGO procesar secuencias
+python sequence_data_processor.py
+```
+
+### **Error: "Modelo LSTM no encontrado"**
+
+**Solución Rápida:**
+```bash
+# Pipeline automatizado (maneja todos los pasos)
+python lstm_pipeline.py
+```
+
+**Solución Manual:**
+```bash
+python frame_extractor.py
 python sequence_data_processor.py
 python train_lstm_model.py
 ```
 
 ### **Error: "Dataset no encontrado"**
+
+**Solución Rápida:**
 ```bash
-# Solución: Procesar videos primero
+# Pipeline automatizado desde el paso 2
+python lstm_pipeline.py --step 2
+```
+
+**Solución Manual:**
+```bash
+python frame_extractor.py
 python sequence_data_processor.py
 ```
 
-### **Error: "No se encontraron frames procesados"**
+### **Error: "No se encontraron videos"**
+
+**Solución:**
 ```bash
-# Solución: Grabar videos primero
+# 1. Grabar videos primero
 python video_collector.py
+
+# 2. Luego ejecutar pipeline completo
+python lstm_pipeline.py
+```
+
+### **Error: "No se encontraron frames procesados"**
+
+**Solución Rápida:**
+```bash
+# Pipeline desde el paso 1
+python lstm_pipeline.py --step 1
+```
+
+**Solución Manual:**
+```bash
+python frame_extractor.py  # Videos → Frames
+python sequence_data_processor.py  # Frames → Dataset
 ```
 
 ### **Overfitting Detectado (Accuracy train >> validation)**
@@ -358,6 +489,50 @@ python train_lstm_model.py --batch-size 8
 # Editar data_augmentation.py: augmentation_factor = 10
 ```
 
+## 🎯 Guía de Inicio para Nuevos Usuarios
+
+### **👶 Primera Vez Usando el Sistema**
+
+1. **📥 Instalar dependencias**:
+   ```bash
+   # Windows
+   setup_env.bat
+   
+   # Linux/Mac
+   ./setup_env.sh
+   ```
+
+2. **📹 Grabar tus primeros videos**:
+   ```bash
+   python video_collector.py
+   ```
+   - Graba al menos 10-20 videos por seña
+   - Usa buena iluminación
+   - Mantén las manos visibles
+
+3. **🤖 Ejecutar pipeline completo**:
+   ```bash
+   python lstm_pipeline.py
+   ```
+   - El sistema te guiará paso a paso
+   - Maneja errores automáticamente
+   - Te dice exactamente qué hacer si algo falla
+
+4. **🎮 Probar tu traductor**:
+   ```bash
+   python app_holistic.py
+   ```
+   - Presiona "▶️ Iniciar Reconocimiento"
+   - Realiza señas frente a la cámara
+   - ¡Disfruta tu traductor de LSA!
+
+### **🔧 Para Desarrolladores Avanzados**
+
+- **Modificar parámetros**: Edita `data_augmentation.py` y `train_lstm_model.py`
+- **Agregar señas**: Usa `video_collector.py` + `lstm_pipeline.py`
+- **Experimentar**: Prueba diferentes arquitecturas en `train_lstm_model.py`
+- **Depurar**: Usa `test_lstm_pipeline.py` para diagnósticos
+
 ## 🚀 Próximas Mejoras
 
 - [ ] **Más señas**: Expandir vocabulario LSA
@@ -366,6 +541,7 @@ python train_lstm_model.py --batch-size 8
 - [ ] **Dataset público**: Compartir datos de LSA
 - [ ] **Métricas avanzadas**: Evaluación automática
 - [ ] **Multi-persona**: Reconocimiento simultáneo
+- [ ] **Pipeline en la nube**: Entrenamiento distribuido
 
 ## 📚 Notas Técnicas
 
@@ -386,3 +562,28 @@ Este sistema implementa un enfoque de **una etapa** optimizado:
 - **Con 25 videos + augmentation**: ~70-80% accuracy
 - **Con 100+ videos por seña**: ~85-95% accuracy
 - **Con 500+ videos por seña**: ~95%+ accuracy
+
+### **Comandos Más Usados**
+
+```bash
+# 🚀 Comando más importante (para principiantes)
+python lstm_pipeline.py
+
+# 📹 Grabar más videos
+python video_collector.py
+
+# 🎮 Usar el traductor
+python app_holistic.py
+
+# 🔍 Verificar que todo funciona
+python lstm_pipeline.py --step 5
+
+# 🛠️ Solo entrenar modelo (si ya tienes datos)
+python lstm_pipeline.py --step 4
+```
+
+---
+
+**💡 ¿Tienes problemas?** Ejecuta `python lstm_pipeline.py` - el sistema detecta automáticamente qué falta y te guía para solucionarlo.
+
+**🎉 ¿Todo funcionó?** ¡Comparte tu experiencia y ayuda a mejorar el proyecto!
