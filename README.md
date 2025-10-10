@@ -88,7 +88,7 @@ python data_augmentation.py
 python train_lstm_model.py
 
 # 6. Usar la aplicación en tiempo real
-python app_holistic.py
+python app_holistic_simple.py
 ```
 
 > **💡 Recomendación**: Usa la **Opción 1** si es tu primera vez. El pipeline automatizado maneja errores y te guía paso a paso.
@@ -149,7 +149,7 @@ python train_lstm_model.py --epochs 50 --batch-size 32
 
 #### **Paso 6: Usar la Aplicación** 🎯
 ```bash
-python app_holistic.py
+python app_holistic_simple.py
 ```
 **¿Qué hace?**
 - Aplicación en tiempo real con cámara web
