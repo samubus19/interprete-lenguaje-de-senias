@@ -26,9 +26,10 @@ class SimpleLSTMApp:
         
         # Filtros para evitar predicciones falsas
         self.hands_detected_count = 0
-        self.min_hands_frames = 5  # Mínimo frames con manos para predecir
+        self.min_hands_frames = 3  # Mínimo frames con manos para predecir
         self.no_hands_count = 0
-        self.max_no_hands = 10  # Máximo frames sin manos antes de limpiar
+        self.max_no_hands_tolerance = 15  # Tolerancia: frames sin manos antes de limpiar buffer (0.5s)
+        self.buffer_cleared = False  # Flag para evitar limpiar repetidamente
         
         # Estado de la aplicación
         if self.recognizer.is_model_loaded():
@@ -140,13 +141,18 @@ class SimpleLSTMApp:
         if hands_present:
             self.hands_detected_count += 1
             self.no_hands_count = 0
+            self.buffer_cleared = False  # Reset flag cuando vuelven las manos
         else:
             self.no_hands_count += 1
-            if self.no_hands_count > self.max_no_hands:
-                # Si no hay manos por mucho tiempo, limpiar contadores
+            # Solo limpiar buffer si hay ausencia prolongada de manos (no pérdidas momentáneas)
+            if self.no_hands_count > self.max_no_hands_tolerance and not self.buffer_cleared:
+                # Ausencia prolongada = usuario bajó las manos o salió de cámara
+                print(f"🧹 Limpiando buffer tras {self.no_hands_count} frames sin manos (ausencia prolongada)")
                 self.hands_detected_count = 0
                 self.prediction_count = 0
                 self.last_prediction = None
+                self.recognizer.reset_buffers()  # Limpiar buffer del reconocedor
+                self.buffer_cleared = True  # Evitar limpiar repetidamente
         
         # Obtener estado del buffer
         buffer_status = self.recognizer.get_buffer_status()
@@ -159,7 +165,7 @@ class SimpleLSTMApp:
         if (buffer_status['is_ready'] and 
             self.hands_detected_count >= self.min_hands_frames and 
             hands_present):
-            prediction = self.recognizer.predict_sequence(threshold=0.75)  # Umbral más alto
+            prediction = self.recognizer.predict_sequence(threshold=0.80)  # Umbral al 80%
         
         if prediction:
             sign = prediction['sign']
@@ -178,15 +184,23 @@ class SimpleLSTMApp:
             
             # Si la predicción es consistente, agregarla al texto
             if self.prediction_count >= self.min_predictions:
-                if sign not in self.accumulated_text:
+                # Evitar duplicados consecutivos en el texto acumulado
+                new_sign = sign.replace('_', ' ')
+                if not self.accumulated_text.endswith(new_sign):
                     if self.accumulated_text:
                         self.accumulated_text += " | "
-                    self.accumulated_text += sign.replace('_', ' ')
-                    self.prediction_count = 0  # Reset counter
-                    print(f"✅ Seña agregada: {sign.replace('_', ' ')} (conf: {confidence:.1%})")
+                    self.accumulated_text += new_sign
+                    print(f"✅ Seña agregada: {new_sign} (conf: {confidence:.1%})")
+                
+                # Reset para permitir nueva detección de la misma seña después de pausa
+                self.prediction_count = 0
+                self.last_prediction = None  # Permite re-detectar la misma seña
         else:
             if not hands_present:
-                self.current_prediction = "Sin manos detectadas"
+                if self.no_hands_count > self.max_no_hands_tolerance:
+                    self.current_prediction = "Esperando manos (buffer limpio)"
+                else:
+                    self.current_prediction = f"Sin manos ({self.no_hands_count}/{self.max_no_hands_tolerance})"
             elif self.hands_detected_count < self.min_hands_frames:
                 self.current_prediction = f"Detectando manos... ({self.hands_detected_count}/{self.min_hands_frames})"
             elif buffer_status['is_ready']:
@@ -243,7 +257,7 @@ class SimpleLSTMApp:
         print("   Q: Salir")
         
         frame_count = 0
-        process_every_n_frames = 2  # Procesar cada 2 frames
+        process_every_n_frames = 1  # Procesar cada 1 frames
         
         while cap.isOpened():
             ret, frame = cap.read()
@@ -297,6 +311,7 @@ class SimpleLSTMApp:
                 self.prediction_count = 0
                 self.hands_detected_count = 0
                 self.no_hands_count = 0
+                self.buffer_cleared = False  # Reset flag de limpieza
                 if self.recognizer.is_model_loaded():
                     self.recognizer.reset_buffers()
                 print("🗑️ Texto y contadores limpiados")

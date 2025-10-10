@@ -148,12 +148,13 @@ class LSTMSignRecognizer:
         keypoints, results = self.extract_keypoints(frame)
         
         if keypoints is not None:
-            # Verificar si hay detecciones válidas
+            # Verificar si hay detecciones válidas (manos presentes)
             if np.sum(np.abs(keypoints)) > 0.1:  # No todo ceros
                 self.sequence_buffer.append(keypoints)
                 return True
         
-        # Si no hay detecciones válidas, agregar ceros
+        # Si no hay detecciones válidas, agregar ceros (padding temporal)
+        # Esto permite mantener continuidad durante pérdidas momentáneas de tracking
         zero_keypoints = np.zeros(self.keypoints_length)
         self.sequence_buffer.append(zero_keypoints)
         return False
@@ -172,12 +173,13 @@ class LSTMSignRecognizer:
         keypoints, results = self.extract_keypoints(frame)
         
         if keypoints is not None:
-            # Verificar si hay detecciones válidas
+            # Verificar si hay detecciones válidas (manos presentes)
             if np.sum(np.abs(keypoints)) > 0.1:  # No todo ceros
                 self.sequence_buffer.append(keypoints)
                 return True, results
         
-        # Si no hay detecciones válidas, agregar ceros
+        # Si no hay detecciones válidas, agregar ceros (padding temporal)
+        # Esto permite mantener continuidad durante pérdidas momentáneas de tracking
         zero_keypoints = np.zeros(self.keypoints_length)
         self.sequence_buffer.append(zero_keypoints)
         return False, results
