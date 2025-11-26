@@ -127,7 +127,7 @@ def draw_interface(image, phrase, status, phrase_path, auto_mode):
         bg_color = (245, 117, 16) # Azul
 
     # Fondo para el texto
-    cv2.rectangle(image, (0, 0), (640, 80), bg_color, -1)
+    cv2.rectangle(image, (0, 0), (1920, 80), bg_color, -1)
 
     # Frase que se está grabando
     cv2.putText(image, f"Frase: {phrase}", (10, 20),
