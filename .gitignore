@@ -37,3 +37,4 @@ confusion_matrix_seq.png
 .env 
 videos/
 processed_frames/
+train-data/extraction_output/
