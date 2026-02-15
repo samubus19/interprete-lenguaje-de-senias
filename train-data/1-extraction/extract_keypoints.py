@@ -2,9 +2,8 @@
 Extrae keypoints (landmarks) de un video usando MediaPipe Holistic.
 
 Formato de salida compatible con el Colab de entrenamiento:
-- Array NumPy de forma (num_frames, 75, 3): 75 keypoints por frame,
-  cada uno con (x, y, confidence). Los 75 son: 33 pose + 21 mano izquierda + 21 mano derecha.
-- No se usan landmarks de rostro para coincidir con el modelo (75 keypoints).
+- Array NumPy de forma (num_frames, num_keypoints, 3): cada keypoint con (x, y, confidence).
+- Orden: 33 pose + 468 cara + 21 mano izquierda + 21 mano derecha = 543 keypoints.
 """
 
 import os
@@ -12,10 +11,11 @@ import numpy as np
 import cv2
 import mediapipe as mp
 
-# Número de keypoints que espera el Colab (33 pose + 21 mano izq + 21 mano der)
-NUM_KEYPOINTS = 75
+# Número de keypoints por frame (pose + cara + mano izq + mano der)
 POSE_LANDMARKS = 33
+FACE_LANDMARKS = 468   # MediaPipe Face Mesh
 HAND_LANDMARKS = 21
+NUM_KEYPOINTS = POSE_LANDMARKS + FACE_LANDMARKS + HAND_LANDMARKS + HAND_LANDMARKS  # 543
 
 
 def _landmarks_to_array(landmarks, default_confidence=1.0):
@@ -48,23 +48,24 @@ def _fill_or_trim(arr, target_len):
 
 def frame_to_keypoints(holistic, frame_rgb):
     """
-    Procesa un frame (RGB) y devuelve un vector de 75 keypoints (33 pose + 21 L + 21 R).
-    Formato: (75, 3) con (x, y, confidence).
+    Procesa un frame (RGB) y devuelve un vector de 543 keypoints:
+    33 pose + 468 cara + 21 mano izq + 21 mano der. Formato: (543, 3) con (x, y, confidence).
     """
     frame_rgb.flags.writeable = False
     results = holistic.process(frame_rgb)
     frame_rgb.flags.writeable = True
 
     pose = _landmarks_to_array(results.pose_landmarks, default_confidence=1.0)
+    face = _landmarks_to_array(results.face_landmarks)  # 468 puntos; si no hay rostro, relleno 0
     left = _landmarks_to_array(results.left_hand_landmarks)
     right = _landmarks_to_array(results.right_hand_landmarks)
 
     pose_arr = _fill_or_trim(pose, POSE_LANDMARKS)
-    left_arr = _fill_or_trim(left, HAND_LANDMARKS)   # cuando no hay mano, rellena 0 y confidence 0
+    face_arr = _fill_or_trim(face, FACE_LANDMARKS)
+    left_arr = _fill_or_trim(left, HAND_LANDMARKS)
     right_arr = _fill_or_trim(right, HAND_LANDMARKS)
 
-    # Un solo vector de 75 keypoints por frame
-    return np.concatenate([pose_arr, left_arr, right_arr], axis=0)
+    return np.concatenate([pose_arr, face_arr, left_arr, right_arr], axis=0)
 
 
 def extract_keypoints_from_video(
@@ -85,8 +86,8 @@ def extract_keypoints_from_video(
         min_tracking_confidence: Umbral de seguimiento de MediaPipe.
 
     Returns:
-        np.ndarray de forma (num_frames, 75, 3), dtype float32.
-        Si el video no tiene frames válidos, devuelve array vacío (0, 75, 3).
+        np.ndarray de forma (num_frames, 543, 3), dtype float32.
+        Si el video no tiene frames válidos, devuelve array vacío (0, 543, 3).
     """
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():

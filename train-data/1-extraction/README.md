@@ -8,9 +8,9 @@ En este proyecto **se usan como sinónimos**: son las posiciones (x, y) más un 
 
 ## Formato de salida (compatible con el Colab)
 
-- **75 keypoints por frame**: 33 de pose (cuerpo) + 21 mano izquierda + 21 mano derecha. No se usan landmarks de rostro.
+- **543 keypoints por frame**: 33 pose (cuerpo) + 468 cara (MediaPipe Face) + 21 mano izquierda + 21 mano derecha.
 - Cada keypoint: `(x, y, confidence)`. Coordenadas normalizadas en [0, 1].
-- Archivos `.npy` con forma `(num_frames, 75, 3)`.
+- Archivos `.npy` con forma `(num_frames, 543, 3)`.
 - `labels.csv` con columnas `ID` y `Label` (ID = nombre del .npy sin extensión, Label = palabra, ej. AGUA, CHAU).
 
 ## Estructura de videos de entrada
