@@ -4,19 +4,26 @@ que espera el Colab de entrenamiento:
 
   output_dir/
   └── data/
-      └── train/
-          ├── labels.csv      (columnas: ID, Label)
+      ├── train/
+      │   ├── labels.csv
+      │   └── poses/
+      │       ├── 0.npy
+      │       └── ...
+      └── test/
+          ├── labels.csv
           └── poses/
               ├── 0.npy
-              ├── 1.npy
               └── ...
 
-Cada .npy tiene forma (num_frames, 75, 3). Los IDs son consecutivos (0, 1, 2, ...) y
-el Label es el nombre de la carpeta (ej. AGUA, CHAU).
+Un porcentaje de las muestras (TEST_SPLIT, ej. 20%%) va a test; el resto a train.
+La división es estratificada por etiqueta (cada clase aporta ~TEST_SPLIT a test).
 """
 
 import os
+import random
 import argparse
+from collections import defaultdict
+
 import pandas as pd
 import mediapipe as mp
 
@@ -27,6 +34,10 @@ from extract_keypoints import extract_keypoints_from_video
 VIDEOS_DIR = "D:/Archivos/Documentos/Universidad/Trabajo Final/videos-20260120T020840Z-3-001/videos"
 # Límite de carpetas a procesar (None = todas). Útil para probar con pocas (ej. 3).
 MAX_FOLDERS = 3
+# Porcentaje de muestras que van a test (0.2 = 20%%). El resto va a train.
+TEST_SPLIT = 0.2
+# Semilla para el split reproducible
+RANDOM_STATE = 42
 
 # Extensiones de video que buscamos
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
@@ -56,6 +67,33 @@ def find_video_files(videos_dir, max_folders=None):
     return items
 
 
+def stratified_train_test_split(video_list, test_ratio=0.2, random_state=42):
+    """
+    Divide la lista (label, video_path) en train y test de forma estratificada por etiqueta.
+    Devuelve (train_list, test_list).
+    """
+    if test_ratio <= 0:
+        return video_list, []
+    if test_ratio >= 1:
+        return [], video_list
+    by_label = defaultdict(list)
+    for item in video_list:
+        label, _ = item
+        by_label[label].append(item)
+    rng = random.Random(random_state)
+    train_list = []
+    test_list = []
+    for label in sorted(by_label.keys()):
+        lst = by_label[label]
+        rng.shuffle(lst)
+        n = len(lst)
+        n_test = int(round(n * test_ratio))
+        n_test = max(0, min(n_test, n - 1))  # al menos 1 en train si n >= 1
+        test_list.extend(lst[:n_test])
+        train_list.extend(lst[n_test:])
+    return train_list, test_list
+
+
 def run_extraction(
     videos_dir,
     output_dir,
@@ -63,21 +101,29 @@ def run_extraction(
     min_tracking_confidence=0.5,
     skip_existing=False,
     max_folders=None,
+    test_split=0.2,
+    random_state=42,
 ):
     """
-    Genera data/train/poses/*.npy y data/train/labels.csv en output_dir.
+    Genera data/train/ y data/test/ (cada uno con poses/ y labels.csv) en output_dir.
+    Un porcentaje test_split de las muestras va a test (división estratificada por etiqueta).
 
     Args:
         videos_dir: Carpeta raíz de videos (contiene subcarpetas AGUA, CHAU, ...).
-        output_dir: Carpeta raíz de salida (se creará output_dir/data/train/poses y labels.csv ahí).
+        output_dir: Carpeta raíz de salida.
         min_detection_confidence: Pasado a MediaPipe.
         min_tracking_confidence: Pasado a MediaPipe.
         skip_existing: Si True, no reprocesar videos cuyo .npy ya exista.
         max_folders: Si es int, solo procesar las primeras N carpetas (None = todas).
+        test_split: Proporción de muestras para test (ej. 0.2 = 20%%).
+        random_state: Semilla para el split reproducible.
     """
     train_dir = os.path.join(output_dir, "data", "train")
-    poses_dir = os.path.join(train_dir, "poses")
-    os.makedirs(poses_dir, exist_ok=True)
+    test_dir = os.path.join(output_dir, "data", "test")
+    train_poses_dir = os.path.join(train_dir, "poses")
+    test_poses_dir = os.path.join(test_dir, "poses")
+    os.makedirs(train_poses_dir, exist_ok=True)
+    os.makedirs(test_poses_dir, exist_ok=True)
 
     video_list = find_video_files(videos_dir, max_folders=max_folders)
     if not video_list:
@@ -86,22 +132,25 @@ def run_extraction(
     if max_folders is not None:
         print(f"Procesando solo las primeras {max_folders} carpetas ({len(video_list)} videos).")
 
-    labels_csv_path = os.path.join(train_dir, "labels.csv")
-    rows = []
+    train_list, test_list = stratified_train_test_split(
+        video_list, test_ratio=test_split, random_state=random_state
+    )
+    print(f"Split: {len(train_list)} train, {len(test_list)} test ({100 * test_split:.0f}% test).")
+
     holistic = mp.solutions.holistic.Holistic(
         min_detection_confidence=min_detection_confidence,
         min_tracking_confidence=min_tracking_confidence,
     )
 
-    try:
-        for sample_id, (label, video_path) in enumerate(video_list):
+    def process_split(split_list, poses_dir, labels_path, split_name):
+        rows = []
+        for sample_id, (label, video_path) in enumerate(split_list):
             npy_path = os.path.join(poses_dir, f"{sample_id}.npy")
             if skip_existing and os.path.isfile(npy_path):
-                print(f"[skip] {video_path} -> {npy_path}")
+                print(f"[skip] {split_name} {video_path} -> {npy_path}")
                 rows.append({"ID": sample_id, "Label": label})
                 continue
-
-            print(f"[{sample_id + 1}/{len(video_list)}] {label} - {os.path.basename(video_path)}")
+            print(f"[{split_name}] {sample_id + 1}/{len(split_list)} {label} - {os.path.basename(video_path)}")
             try:
                 extract_keypoints_from_video(
                     video_path,
@@ -113,13 +162,19 @@ def run_extraction(
                 rows.append({"ID": sample_id, "Label": label})
             except Exception as e:
                 print(f"  Error: {e}")
+        df = pd.DataFrame(rows)
+        df.to_csv(labels_path, index=False)
+        print(f"  {split_name}: {labels_path} ({len(df)} muestras, {df['Label'].nunique()} clases)")
+        return df
+
+    try:
+        process_split(train_list, train_poses_dir, os.path.join(train_dir, "labels.csv"), "train")
+        process_split(test_list, test_poses_dir, os.path.join(test_dir, "labels.csv"), "test")
     finally:
         holistic.close()
 
-    df = pd.DataFrame(rows)
-    df.to_csv(labels_csv_path, index=False)
-    print(f"\nListo. Poses: {poses_dir}")
-    print(f"Labels: {labels_csv_path} ({len(df)} muestras, {df['Label'].nunique()} clases)")
+    print(f"\nListo. Train: {train_poses_dir}")
+    print(f"       Test:  {test_poses_dir}")
 
 
 def main():
@@ -148,6 +203,12 @@ def main():
         action="store_true",
         help="No reprocesar videos que ya tengan .npy",
     )
+    parser.add_argument(
+        "--test-split",
+        type=float,
+        default=TEST_SPLIT,
+        help=f"Proporción de muestras para test (ej. 0.2 = 20%%). Por defecto: {TEST_SPLIT} (constante TEST_SPLIT).",
+    )
     parser.add_argument("--min-detection", type=float, default=0.5)
     parser.add_argument("--min-tracking", type=float, default=0.5)
     args = parser.parse_args()
@@ -166,6 +227,8 @@ def main():
         min_tracking_confidence=args.min_tracking,
         skip_existing=args.skip_existing,
         max_folders=max_folders,
+        test_split=args.test_split,
+        random_state=RANDOM_STATE,
     )
 
 

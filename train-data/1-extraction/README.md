@@ -41,6 +41,8 @@ Podés editar al inicio del archivo:
 
 - **`VIDEOS_DIR`**: ruta donde están los videos (p. ej. `"videos"` o `"C:/ruta/mis_videos"`). Es el valor por defecto si no pasás la carpeta por línea de comandos.
 - **`MAX_FOLDERS`**: número de carpetas (palabras) a procesar, o `None` para todas. Por defecto `3` para probar solo las primeras 3; cuando funcione, poné `None` o ejecutá con `--max-folders 0` para procesar todas.
+- **`TEST_SPLIT`**: proporción de muestras que van a **test** (ej. `0.2` = 20%). El resto va a train. La división es estratificada por clase.
+- **`RANDOM_STATE`**: semilla para que el split train/test sea reproducible.
 
 ## Uso
 
@@ -62,6 +64,8 @@ Para procesar **todas** las carpetas (ignorar `MAX_FOLDERS`): `--max-folders 0`.
 
 - `-o train-data/extraction_output`: donde se creará `data/train/poses/` y `data/train/labels.csv`.
 
+Se generan **dos conjuntos**: `data/train/` (entrenamiento) y `data/test/` (evaluación). Un porcentaje de las muestras (por defecto **20%**, constante `TEST_SPLIT` en `process_videos.py`) va a test; la división es **estratificada por etiqueta** (cada clase aporta aproximadamente ese porcentaje a test).
+
 Para usar esos datos en el Colab, apunta `input_path` a la carpeta que contiene `data/` (en el ejemplo: `train-data/extraction_output` o subir esa carpeta a Drive y usar su ruta).
 
 ### Opción 2: Un solo video
@@ -73,6 +77,7 @@ python train-data/1-extraction/extract_keypoints.py path/al/video.mp4 -o salida.
 ### Opciones útiles de `process_videos.py`
 
 - `--max-folders N`: procesar solo las primeras N carpetas; `0` = todas (por defecto usa la constante `MAX_FOLDERS`).
+- `--test-split F`: proporción para test (ej. `0.2` = 20%). Por defecto usa la constante `TEST_SPLIT`.
 - `--skip-existing`: no reprocesar videos que ya tengan su `.npy` generado.
 - `--min-detection`, `--min-tracking`: umbrales de MediaPipe (por defecto 0.5).
 

@@ -34,7 +34,11 @@ confusion_matrix.png
 confusion_matrix_seq.png
 
 # Otros
-.env 
+.env
 videos/
 processed_frames/
 train-data/extraction_output/
+
+# Todos los .zip dentro de train-data
+train-data/*.zip
+train-data/**/*.zip
